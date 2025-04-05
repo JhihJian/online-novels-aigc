@@ -8,8 +8,8 @@
 # ========================
 
 # Gemini API配置
-GEMINI_API_KEY = "YOUR_GEMINI_API_KEY_HERE"  # 您的Gemini API密钥
-GEMINI_MODEL = "gemini-1.5-pro"  # 使用的模型，最新版本为gemini-1.5-pro
+GEMINI_API_KEY = "AIzaSyBM65Kxl2Rk-TCUfgKzzL7tunFltZCzQt8"  # 您的Gemini API密钥
+GEMINI_MODEL = "gemini-2.0-flash"  # 使用的模型，默认为gemini-pro
 GEMINI_GENERATION_CONFIG = {
     "temperature": 0.7,       # 温度参数，控制随机性
     "top_p": 0.95,            # Top-p采样

@@ -1,5 +1,6 @@
 """
 剧情设计代理模块，用于与LLM交互生成剧情。
+整合了agno库的Agent功能实现更高效的交互。
 """
 
 import json
@@ -7,14 +8,17 @@ from typing import Dict, Any, List, Optional
 import uuid
 from datetime import datetime
 
+from agno.agent import Agent
+from agno.tools import tool
+
 from novel_generator.models.plot import Plot
 from novel_generator.models.world import World
 from novel_generator.models.character import Character
 from novel_generator.llm.base import BaseLLM
 
 
-class PlotDesignerAgent:
-    """剧情设计代理，负责与LLM交互生成剧情"""
+class PlotDesignerAgent(Agent):
+    """剧情设计代理，负责与LLM交互生成剧情，基于agno的Agent实现"""
     
     def __init__(self, llm: BaseLLM):
         """
@@ -23,7 +27,109 @@ class PlotDesignerAgent:
         Args:
             llm: 语言模型接口
         """
+        super().__init__(
+            name="PlotDesignerAgent", 
+            description="负责创建和扩展小说剧情的AI代理"
+        )
         self.llm = llm
+        self._register_tools()
+    
+    def _register_tools(self):
+        """注册代理可用的工具"""
+        
+        @tool(description="创建新的剧情")
+        async def generate_plot(world_data: Dict[str, Any], characters_data: List[Dict[str, Any]], description: str) -> Dict[str, Any]:
+            """
+            创建新的剧情。
+            
+            Args:
+                world_data: 世界数据
+                characters_data: 角色数据列表
+                description: 剧情的基本描述
+                
+            Returns:
+                创建的剧情数据
+            """
+            # 创建世界和角色对象
+            world = World.from_dict(world_data)
+            characters = [Character.from_dict(char_data) for char_data in characters_data]
+            
+            # 构建提示词
+            prompt = self._build_plot_prompt(world, characters, description)
+            
+            # 调用LLM获取剧情
+            response = await self.llm.generate(prompt)
+            
+            # 解析LLM响应
+            plot_data = self._parse_plot_response(response, description)
+            plot_data["world_id"] = world.id
+            
+            return plot_data
+        
+        @tool(description="生成章节大纲")
+        async def generate_chapter_outline(plot_data: Dict[str, Any], chapter_index: int) -> Dict[str, Any]:
+            """
+            生成章节大纲。
+            
+            Args:
+                plot_data: 剧情数据
+                chapter_index: 章节索引
+                
+            Returns:
+                章节大纲数据
+            """
+            # 创建剧情对象
+            plot = Plot.from_dict(plot_data)
+            
+            # 构建提示词
+            prompt = self._build_chapter_prompt(plot, chapter_index)
+            
+            # 调用LLM获取章节大纲
+            response = await self.llm.generate(prompt)
+            
+            # 解析LLM响应
+            chapter_data = self._parse_chapter_response(response, chapter_index)
+            
+            return chapter_data
+        
+        @tool(description="扩展剧情的特定方面")
+        async def extend_plot_aspect(plot_data: Dict[str, Any], world_data: Dict[str, Any], 
+                                   characters_data: List[Dict[str, Any]], aspect: str) -> Dict[str, Any]:
+            """
+            扩展剧情的特定方面。
+            
+            Args:
+                plot_data: 剧情数据
+                world_data: 世界数据
+                characters_data: 角色数据列表
+                aspect: 要扩展的方面
+                
+            Returns:
+                扩展后的剧情数据
+            """
+            # 创建剧情、世界和角色对象
+            plot = Plot.from_dict(plot_data)
+            world = World.from_dict(world_data)
+            characters = [Character.from_dict(char_data) for char_data in characters_data]
+            
+            # 构建提示词
+            prompt = self._build_extension_prompt(plot, world, characters, aspect)
+            
+            # 调用LLM获取扩展内容
+            response = await self.llm.generate(prompt)
+            
+            # 更新剧情对象
+            updated_plot = self._update_plot_aspect(plot, aspect, response)
+            
+            # 返回更新后的字典
+            return updated_plot.to_dict()
+        
+        # 直接设置tools属性
+        self.tools = {
+            "generate_plot": generate_plot,
+            "generate_chapter_outline": generate_chapter_outline,
+            "extend_plot_aspect": extend_plot_aspect
+        }
     
     async def create_plot(self, world: World, characters: List[Character], description: str) -> Plot:
         """
@@ -37,23 +143,21 @@ class PlotDesignerAgent:
         Returns:
             创建的剧情对象
         """
-        # 构建提示词
-        prompt = self._build_plot_prompt(world, characters, description)
+        # 获取世界和角色数据
+        world_data = world.to_dict()
+        characters_data = [char.to_dict() for char in characters]
         
-        # 调用LLM获取剧情
-        response = await self.llm.generate(prompt)
-        
-        # 解析LLM响应
-        plot_data = self._parse_plot_response(response, description)
+        # 调用代理的generate_plot工具
+        result = await self.tools["generate_plot"](world_data, characters_data, description)
         
         # 创建剧情对象
         plot = Plot(
-            title=plot_data.get("title", "未命名剧情"),
+            title=result.get("title", "未命名剧情"),
             world_id=world.id,
-            background=plot_data.get("background", ""),
-            main_plot=plot_data.get("main_plot", ""),
-            turning_points=plot_data.get("turning_points", []),
-            chapters=plot_data.get("chapters", []),
+            background=result.get("background", ""),
+            main_plot=result.get("main_plot", ""),
+            turning_points=result.get("turning_points", []),
+            chapters=result.get("chapters", []),
             id=str(uuid.uuid4()),
             created_at=datetime.now().isoformat()
         )
@@ -71,16 +175,13 @@ class PlotDesignerAgent:
         Returns:
             章节大纲数据
         """
-        # 构建提示词
-        prompt = self._build_chapter_prompt(plot, chapter_index)
+        # 获取剧情数据
+        plot_data = plot.to_dict()
         
-        # 调用LLM获取章节大纲
-        response = await self.llm.generate(prompt)
+        # 调用代理的generate_chapter_outline工具
+        result = await self.tools["generate_chapter_outline"](plot_data, chapter_index)
         
-        # 解析LLM响应
-        chapter_data = self._parse_chapter_response(response, chapter_index)
-        
-        return chapter_data
+        return result
     
     async def extend_plot(self, plot: Plot, world: World, characters: List[Character], aspect: str) -> Plot:
         """
@@ -95,16 +196,16 @@ class PlotDesignerAgent:
         Returns:
             更新后的剧情对象
         """
-        # 构建提示词
-        prompt = self._build_extension_prompt(plot, world, characters, aspect)
+        # 获取剧情、世界和角色数据
+        plot_data = plot.to_dict()
+        world_data = world.to_dict()
+        characters_data = [char.to_dict() for char in characters]
         
-        # 调用LLM获取扩展内容
-        response = await self.llm.generate(prompt)
+        # 调用代理的extend_plot_aspect工具
+        result = await self.tools["extend_plot_aspect"](plot_data, world_data, characters_data, aspect)
         
-        # 解析LLM响应
-        updated_plot = self._update_plot_aspect(plot, aspect, response)
-        
-        return updated_plot
+        # 返回更新后的剧情对象
+        return Plot.from_dict(result)
     
     def _build_plot_prompt(self, world: World, characters: List[Character], description: str) -> str:
         """
