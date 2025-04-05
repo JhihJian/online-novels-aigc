@@ -1,0 +1,20 @@
+# 核心依赖
+agno>=1.2.8
+google-generativeai>=0.3.2
+pydantic>=2.5.0
+rich>=13.6.0
+
+# 工具和辅助库
+tqdm>=4.65.0
+python-dotenv>=1.0.0
+uuid>=1.30
+
+# 存储相关
+sqlalchemy>=2.0.0
+
+# 可选依赖（根据运行环境和计划功能启用）
+# flask>=2.2.0  # v2.0 Web界面
+# fastapi>=0.95.0  # v3.0 API服务
+# pymongo>=4.3.0  # v3.0 MongoDB支持
+# redis>=4.5.0  # v3.0 缓存支持
+# minio>=7.1.0  # v3.0 媒体文件存储 

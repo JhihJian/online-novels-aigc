@@ -1,0 +1,1 @@
+goal: implement a agent to write chinese online novels using agno
