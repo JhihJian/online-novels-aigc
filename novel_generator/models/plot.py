@@ -51,6 +51,15 @@ class Plot:
         Returns:
             包含所有剧情数据的字典
         """
+        # 处理created_at和updated_at可能是字符串或datetime的情况
+        created_at_str = self.created_at
+        if isinstance(self.created_at, datetime.datetime):
+            created_at_str = self.created_at.isoformat()
+            
+        updated_at_str = self.updated_at
+        if isinstance(self.updated_at, datetime.datetime):
+            updated_at_str = self.updated_at.isoformat()
+            
         return {
             "id": self.id,
             "title": self.title,
@@ -59,8 +68,8 @@ class Plot:
             "main_plot": self.main_plot,
             "turning_points": self.turning_points,
             "chapters": self.chapters,
-            "created_at": self.created_at.isoformat(),
-            "updated_at": self.updated_at.isoformat(),
+            "created_at": created_at_str,
+            "updated_at": updated_at_str,
         }
     
     @classmethod
@@ -74,7 +83,14 @@ class Plot:
         Returns:
             创建的剧情对象
         """
-        created_at = datetime.datetime.fromisoformat(data.get("created_at")) if "created_at" in data else None
+        created_at = data.get("created_at")
+        # 如果是字符串且不是空字符串，尝试转换为datetime
+        if isinstance(created_at, str) and created_at:
+            try:
+                created_at = datetime.datetime.fromisoformat(created_at)
+            except ValueError:
+                # 如果无法解析为日期时间，保留字符串形式
+                pass
         
         return cls(
             id=data.get("id"),
@@ -159,4 +175,4 @@ class Plot:
         """
         if 0 <= index < len(self.chapters):
             return self.chapters[index]
-        return None 
+        return None

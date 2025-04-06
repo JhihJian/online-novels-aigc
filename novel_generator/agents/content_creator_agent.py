@@ -32,6 +32,8 @@ class ContentCreatorAgent(Agent):
             description="负责创建小说章节内容的AI代理"
         )
         self.llm = llm
+        # 由于agno库需要自己的模型接口，而我们使用的是自定义的BaseLLM接口
+        # 这里我们使用直接调用工具的方式而不是通过Agent.run
         self._register_tools()
     
     def _register_tools(self):
@@ -167,6 +169,26 @@ class ContentCreatorAgent(Agent):
             "refine_chapter_content": refine_chapter_content
         }
     
+    async def _direct_call_tool(self, tool_name: str, **kwargs):
+        """
+        直接调用工具函数，绕过Agent.run机制
+        
+        Args:
+            tool_name: 工具名称
+            **kwargs: 工具参数
+            
+        Returns:
+            工具执行结果
+        """
+        if tool_name not in self.tools:
+            raise ValueError(f"工具 {tool_name} 不存在")
+            
+        # 获取工具函数
+        tool_func = self.tools[tool_name].entrypoint
+        
+        # 直接调用工具函数
+        return await tool_func(**kwargs)
+    
     async def create_chapter_content(self, plot: Plot, world: World, characters: List[Character], chapter_index: int) -> Dict[str, Any]:
         """
         创建章节内容。
@@ -185,8 +207,12 @@ class ContentCreatorAgent(Agent):
         world_data = world.to_dict()
         characters_data = [char.to_dict() for char in characters]
         
-        # 调用代理的generate_chapter_content工具
-        result = await self.tools["generate_chapter_content"](plot_data, world_data, characters_data, chapter_index)
+        # 直接调用工具函数
+        result = await self._direct_call_tool("generate_chapter_content", 
+                                            plot_data=plot_data, 
+                                            world_data=world_data, 
+                                            characters_data=characters_data, 
+                                            chapter_index=chapter_index)
         
         return result
     
@@ -210,8 +236,13 @@ class ContentCreatorAgent(Agent):
         world_data = world.to_dict()
         characters_data = [char.to_dict() for char in characters]
         
-        # 调用代理的generate_scene_content工具
-        result = await self.tools["generate_scene_content"](plot_data, world_data, characters_data, chapter_index, scene_description)
+        # 直接调用工具函数
+        result = await self._direct_call_tool("generate_scene_content", 
+                                            plot_data=plot_data, 
+                                            world_data=world_data, 
+                                            characters_data=characters_data, 
+                                            chapter_index=chapter_index, 
+                                            scene_description=scene_description)
         
         return result
     
@@ -236,9 +267,14 @@ class ContentCreatorAgent(Agent):
         world_data = world.to_dict()
         characters_data = [char.to_dict() for char in characters]
         
-        # 调用代理的refine_chapter_content工具
-        result = await self.tools["refine_chapter_content"](plot_data, world_data, characters_data, chapter_index, 
-                                                      current_content, refinement_instruction)
+        # 直接调用工具函数
+        result = await self._direct_call_tool("refine_chapter_content", 
+                                            plot_data=plot_data, 
+                                            world_data=world_data, 
+                                            characters_data=characters_data,
+                                            chapter_index=chapter_index, 
+                                            current_content=current_content, 
+                                            refinement_instruction=refinement_instruction)
         
         return result
     

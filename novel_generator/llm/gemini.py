@@ -16,13 +16,13 @@ from novel_generator.llm.base import BaseLLM
 class GeminiLLM(BaseLLM):
     """Google Gemini语言模型实现"""
     
-    def __init__(self, api_key: str = None, model_name: str = "gemini-1.5-pro", generation_config: Dict[str, Any] = None):
+    def __init__(self, api_key: str = None, model_name: str = "gemini-2.0-flash", generation_config: Dict[str, Any] = None):
         """
         初始化Gemini LLM。
         
         Args:
             api_key: Gemini API密钥，如不提供则从环境变量GEMINI_API_KEY获取
-            model_name: 使用的模型名称，默认为"gemini-1.5-pro" (注：旧模型"gemini-pro"可能已不可用)
+            model_name: 使用的模型名称，默认为"gemini-2.0-flash" (注：旧模型可能已不可用)
             generation_config: 生成配置参数
         """
         self.api_key = api_key or os.environ.get("GEMINI_API_KEY")
@@ -38,18 +38,10 @@ class GeminiLLM(BaseLLM):
         # 检查可用模型
         try:
             available_models = [m.name for m in genai.list_models()]
-            print(f"可用模型: {available_models}")
+            # print(f"可用模型: {available_models}")
             
             # 自动选择可用的gemini模型
             self.model_name = model_name
-            if self.model_name not in available_models:
-                # 尝试查找可用的gemini模型
-                gemini_models = [m for m in available_models if "gemini" in m.lower()]
-                if gemini_models:
-                    self.model_name = gemini_models[0]
-                    print(f"自动选择可用模型: {self.model_name}")
-                else:
-                    raise ValueError(f"找不到可用的Gemini模型。可用模型: {available_models}")
         except Exception as e:
             print(f"获取模型列表时出错: {str(e)}")
             # 继续使用用户指定的模型，但可能会在后续调用中失败
@@ -79,6 +71,26 @@ class GeminiLLM(BaseLLM):
             HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_ONLY_HIGH,
             HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_ONLY_HIGH,
         }
+    
+    @property
+    def model_name(self) -> str:
+        """
+        获取当前使用的模型名称。
+        
+        Returns:
+            模型名称
+        """
+        return self._model_name
+        
+    @model_name.setter
+    def model_name(self, value: str):
+        """
+        设置模型名称。
+        
+        Args:
+            value: 新的模型名称
+        """
+        self._model_name = value
     
     async def generate(self, prompt: str, temperature: float = 0.7, max_tokens: int = None) -> str:
         """

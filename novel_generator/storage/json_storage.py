@@ -115,6 +115,13 @@ class JsonStorage:
                             "created_at": data.get("created_at", ""),
                             "updated_at": data.get("updated_at", "")
                         }
+                        
+                        # 对于角色，添加world_id和basic_info信息
+                        if category == "characters":
+                            item["world_id"] = data.get("world_id", "")
+                            if "basic_info" in data and isinstance(data["basic_info"], dict):
+                                item["basic_info"] = data["basic_info"]
+                            
                         result.append(item)
                 except Exception as e:
                     print(f"读取文件 {file_path} 时出错: {e}")

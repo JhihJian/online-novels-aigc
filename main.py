@@ -133,8 +133,8 @@ async def create_character(storage: JsonStorage, world: World):
     description = Prompt.ask("\n请描述您想要的角色\n(例如：一位天赋异禀但性格孤僻的少年，来自边远山村...)\n")
     
     if not description:
-        console.print("[yellow]描述为空，已取消创建[/yellow]")
-        return None
+        console.print("[yellow]描述为空，将生成随机角色...[/yellow]")
+        description = "随机生成一个符合该世界观的有趣角色，要有独特性格和背景故事"
     
     console.print("[bold green]正在生成角色，这可能需要一些时间...[/bold green]")
     
@@ -197,7 +197,10 @@ async def list_characters(storage: JsonStorage, world: World):
     console.print(Panel.fit(f"「{world.name}」世界的角色", title="角色列表", border_style="purple"))
     
     for i, character in enumerate(world_characters, 1):
-        console.print(f"[purple]{i}.[/purple] {character.get('name', '未命名')} - {character.get('role', '未知角色')} (ID: {character.get('id', 'unknown')})")
+        role = "未知角色"
+        if "basic_info" in character and isinstance(character["basic_info"], dict) and "role" in character["basic_info"]:
+            role = character["basic_info"]["role"]
+        console.print(f"[purple]{i}.[/purple] {character.get('name', '未命名')} - {role} (ID: {character.get('id', 'unknown')})")
     
     index = Prompt.ask("请选择一个角色（输入序号）", default="1")
     try:
@@ -245,10 +248,13 @@ async def select_multiple_characters(storage: JsonStorage, world: World):
     table.add_column("角色定位")
     
     for i, character in enumerate(world_characters, 1):
+        role = "未知角色"
+        if "basic_info" in character and isinstance(character["basic_info"], dict) and "role" in character["basic_info"]:
+            role = character["basic_info"]["role"]
         table.add_row(
             str(i), 
             character.get('name', '未命名'), 
-            character.get('role', '未知角色')
+            role
         )
     
     console.print(table)
@@ -288,7 +294,10 @@ async def create_plot(storage: JsonStorage, world: World, characters: List[Chara
     # 显示已选角色
     console.print("[bold]已选择的角色：[/bold]")
     for i, character in enumerate(characters, 1):
-        console.print(f"[cyan]{i}.[/cyan] {character.name} - {character.role}")
+        role = "未知角色"
+        if hasattr(character, "basic_info") and character.basic_info and "role" in character.basic_info:
+            role = character.basic_info["role"]
+        console.print(f"[cyan]{i}.[/cyan] {character.name} - {role}")
     
     description = Prompt.ask("\n请描述您想要的剧情\n(例如：主角在修炼过程中发现一个远古秘密，踏上寻找真相的旅程...)\n")
     
